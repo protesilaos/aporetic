@@ -91,6 +91,10 @@ Use the following command:
 brew install font-aporetic
 ```
 
+### Install on Windows
+
+Downloading the fonts using your preferred method. One option is you can click the green "<> Code" button and choose "Download Zip" option to save a zip file of the fonts to your Downloads folder. Click on the zip file in your Downloads folder and choose "Extract All" from the menu bar at the top of the screen (also accessible by right clicking on the zip file and choosing the same option "Extract All"). A dialog box will pop up where you can choose the location of where the extracted files will go, you can leave the location as the default or you can update the folder location. Then click the "Extract" button on the bottom right of the dialog box. A new windows explorer window will load where you can access the files that are now extracted. Go into each subfolder and right click on the ttf files and choose the "Install" option.
+
 ## Build information
 
 _Aporetic_ is configured in accordance with the documentation of the upstream project. This practically means that (i) [we clone the official repo](https://github.com/be5invis/iosevka), (ii) define our `private-build-plans.toml` at its root, (iii) install the `npm` dependencies, and (iv) build the `.ttf` files with something like the following for each variant (run from the root of the project):
