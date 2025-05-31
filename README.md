@@ -8,6 +8,8 @@ Customised build of the [Iosevka typeface](https://github.com/be5invis/Iosevka),
 + Sample pictures: <https://protesilaos.com/emacs/aporetic-fonts-pictures>
 + Backronym: Aporetic's Predecessor Objects' Reserved Eponym Truly Included "Comfy".
 
+A "nerd fonts" version of Aporetic, maintained by Gabriel, is available here: <https://github.com/Echinoidea/Aporetic-Nerd-Font>.
+
 ## Principles of the design
 
 _Aporetic_ optimises for inter-glyph and inter-style consistency within the overarching constraint of usability at small point sizes. The shapes are generally round and are picked systematically to both impose a predictable rhythm and keep all characters distinct from each other.
