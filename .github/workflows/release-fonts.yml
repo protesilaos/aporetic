@@ -1,0 +1,351 @@
+name: Build and release fonts
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create or update"
+        required: true
+        type: string
+      iosevka_ref:
+        description: "Iosevka git ref used for the build; defaults to upstream main"
+        required: false
+        default: "main"
+        type: string
+
+env:
+  IOSEVKA_REF: ${{ inputs.iosevka_ref || 'main' }}
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+permissions:
+  contents: read
+
+jobs:
+  build-font:
+    name: ${{ matrix.family.plan }} ${{ matrix.width.key }} ${{ matrix.weight.key }} ${{ matrix.slope.key }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      # No max-parallel cap: use the repo/org runner concurrency limit.
+      matrix:
+        family:
+          - plan: aporetic-sans
+            spacing: quasi-proportional
+          - plan: aporetic-sans-mono
+            spacing: term
+          - plan: aporetic-serif
+            spacing: quasi-proportional
+          - plan: aporetic-serif-mono
+            spacing: term
+        width:
+          - key: normal
+            shape: 525
+            menu: 5
+            css: normal
+        weight:
+          - key: thin
+            shape: 100
+            menu: 100
+            css: 100
+          - key: extralight
+            shape: 200
+            menu: 200
+            css: 200
+          - key: light
+            shape: 300
+            menu: 300
+            css: 300
+          - key: regular
+            shape: 400
+            menu: 400
+            css: 400
+          - key: medium
+            shape: 500
+            menu: 500
+            css: 500
+          - key: semibold
+            shape: 600
+            menu: 600
+            css: 600
+          - key: bold
+            shape: 700
+            menu: 700
+            css: 700
+          - key: extrabold
+            shape: 800
+            menu: 800
+            css: 800
+          - key: heavy
+            shape: 900
+            menu: 900
+            css: 900
+        slope:
+          - key: upright
+            angle: 0
+            shape: upright
+            menu: upright
+            css: normal
+          - key: italic
+            angle: 9.4
+            shape: italic
+            menu: italic
+            css: italic
+
+    env:
+      FAMILY_PLAN: ${{ matrix.family.plan }}
+      FONT_SPACING: ${{ matrix.family.spacing }}
+      WIDTH_KEY: ${{ matrix.width.key }}
+      WIDTH_SHAPE: ${{ matrix.width.shape }}
+      WIDTH_MENU: ${{ matrix.width.menu }}
+      WIDTH_CSS: ${{ matrix.width.css }}
+      WEIGHT_KEY: ${{ matrix.weight.key }}
+      WEIGHT_SHAPE: ${{ matrix.weight.shape }}
+      WEIGHT_MENU: ${{ matrix.weight.menu }}
+      WEIGHT_CSS: ${{ matrix.weight.css }}
+      SLOPE_KEY: ${{ matrix.slope.key }}
+      SLOPE_ANGLE: ${{ matrix.slope.angle }}
+      SLOPE_SHAPE: ${{ matrix.slope.shape }}
+      SLOPE_MENU: ${{ matrix.slope.menu }}
+      SLOPE_CSS: ${{ matrix.slope.css }}
+
+    steps:
+      - name: Checkout Aporetic
+        uses: actions/checkout@v6
+        with:
+          path: aporetic
+
+      - name: Checkout Iosevka
+        uses: actions/checkout@v6
+        with:
+          repository: be5invis/Iosevka
+          ref: ${{ env.IOSEVKA_REF }}
+          path: iosevka
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: iosevka/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ttfautohint woff2
+
+      - name: Install Iosevka dependencies
+        working-directory: iosevka
+        run: npm ci
+
+      - name: Create one-face feature-enabled build plan
+        run: |
+          set -euo pipefail
+
+          node <<'JS'
+          const fs = require("node:fs");
+
+          const plan = process.env.FAMILY_PLAN;
+          const spacing = process.env.FONT_SPACING;
+          const widthKey = process.env.WIDTH_KEY;
+          const widthShape = process.env.WIDTH_SHAPE;
+          const widthMenu = process.env.WIDTH_MENU;
+          const widthCss = process.env.WIDTH_CSS;
+          const weightKey = process.env.WEIGHT_KEY;
+          const weightShape = process.env.WEIGHT_SHAPE;
+          const weightMenu = process.env.WEIGHT_MENU;
+          const weightCss = process.env.WEIGHT_CSS;
+          const slopeKey = process.env.SLOPE_KEY;
+          const slopeAngle = process.env.SLOPE_ANGLE;
+          const slopeShape = process.env.SLOPE_SHAPE;
+          const slopeMenu = process.env.SLOPE_MENU;
+          const slopeCss = process.env.SLOPE_CSS;
+
+          const sectionHeader = /^\s*\[([^\]]+)\]\s*$/;
+          const topLevelKeys = /^\s*(spacing|export-glyph-names|exportGlyphNames|noCvSs|noLigation|webfontFormats)\s*=/;
+          const removedSubsections = ["weights", "slopes", "widths", "ligations"];
+
+          function isRemovedTargetSubsection(section) {
+            return removedSubsections.some((subsection) => {
+              const prefix = `buildPlans.${plan}.${subsection}`;
+              return section === prefix || section.startsWith(`${prefix}.`);
+            });
+          }
+
+          function featureLines() {
+            return [
+              `spacing = "${spacing}"\n`,
+              "exportGlyphNames = true\n",
+              "noCvSs = false\n",
+              "noLigation = false\n",
+              'webfontFormats = ["TTF", "WOFF2"]\n',
+            ];
+          }
+
+          const source = fs.readFileSync("aporetic/private-build-plans.toml", "utf8");
+          const result = [];
+          let inTargetTopSection = false;
+          let targetFeaturesInserted = false;
+          let skipSection = false;
+
+          for (const line of source.match(/^.*(?:\r?\n|$)/gm)) {
+            if (line === "") continue;
+
+            const sectionMatch = sectionHeader.exec(line);
+            if (sectionMatch) {
+              if (inTargetTopSection && !targetFeaturesInserted) {
+                result.push(...featureLines());
+                targetFeaturesInserted = true;
+              }
+
+              const section = sectionMatch[1];
+              inTargetTopSection = section === `buildPlans.${plan}`;
+              skipSection = isRemovedTargetSubsection(section);
+
+              if (!skipSection) {
+                result.push(line);
+              }
+              continue;
+            }
+
+            if (skipSection) {
+              continue;
+            }
+
+            if (inTargetTopSection && topLevelKeys.test(line)) {
+              continue;
+            }
+
+            result.push(line);
+          }
+
+          if (inTargetTopSection && !targetFeaturesInserted) {
+            result.push(...featureLines());
+          }
+
+          result.push(
+            "\n",
+            `[buildPlans.${plan}.ligations]\n`,
+            'inherits = "default-calt"\n',
+            "\n",
+            `[buildPlans.${plan}.weights.${weightKey}]\n`,
+            `shape = ${weightShape}\n`,
+            `menu = ${weightMenu}\n`,
+            `css = ${weightCss}\n`,
+            "\n",
+            `[buildPlans.${plan}.slopes.${slopeKey}]\n`,
+            `angle = ${slopeAngle}\n`,
+            `shape = "${slopeShape}"\n`,
+            `menu = "${slopeMenu}"\n`,
+            `css = "${slopeCss}"\n`,
+            "\n",
+            `[buildPlans.${plan}.widths.${widthKey}]\n`,
+            `shape = ${widthShape}\n`,
+            `menu = ${widthMenu}\n`,
+            `css = "${widthCss}"\n`,
+          );
+
+          fs.writeFileSync("iosevka/private-build-plans.toml", result.join(""));
+          JS
+
+      - name: Build hinted TTF, unhinted TTF, and WOFF2
+        working-directory: iosevka
+        run: npm run build -- "ttf-unhinted::${FAMILY_PLAN}" "ttf::${FAMILY_PLAN}" "woff2::${FAMILY_PLAN}" --jCmd=1
+
+      - name: Collect font files
+        run: |
+          set -euo pipefail
+
+          mkdir -p "out/${FAMILY_PLAN}"
+
+          find "iosevka/dist/${FAMILY_PLAN}" \
+            -type f \( -name '*.ttf' -o -name '*.woff2' \) -print0 \
+            | while IFS= read -r -d '' file; do
+                relative_path="${file#iosevka/dist/${FAMILY_PLAN}/}"
+                mkdir -p "out/${FAMILY_PLAN}/$(dirname "${relative_path}")"
+                cp "${file}" "out/${FAMILY_PLAN}/${relative_path}"
+              done
+
+          ttf_count="$(find out -type f -name '*.ttf' | wc -l)"
+          woff2_count="$(find out -type f -name '*.woff2' | wc -l)"
+          test "${ttf_count}" -ge 2
+          test "${woff2_count}" -ge 1
+
+      - name: Upload font artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: font-${{ matrix.family.plan }}-${{ matrix.width.key }}-${{ matrix.weight.key }}-${{ matrix.slope.key }}
+          path: out/
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    needs: build-font
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Aporetic
+        uses: actions/checkout@v6
+
+      - name: Download font artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: font-*
+          path: collected
+          merge-multiple: true
+
+      - name: Package release assets
+        run: |
+          set -euo pipefail
+
+          cp README.md LICENSE.md collected/
+          (
+            cd collected
+            find . -type f \( -name '*.ttf' -o -name '*.woff2' \) | sort > MANIFEST.txt
+          )
+
+          mkdir -p release
+          (
+            cd collected
+            zip -qr "../release/aporetic.zip" .
+          )
+
+          cat > release-notes.md <<EOF
+          Full static Aporetic font build.
+
+          - Iosevka ref: \`${IOSEVKA_REF}\`
+          - Families: Aporetic Sans, Aporetic Sans Mono, Aporetic Serif, Aporetic Serif Mono
+          - Weights: thin, extralight, light, regular, medium, semibold, bold, extrabold, heavy
+          - Slopes: upright, italic
+          - Width: normal
+          - Features: default contextual ligatures, exported glyph names for Kitty, OpenType CV/SS features
+          - Formats: hinted TTF, unhinted TTF, WOFF2
+          EOF
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          release_args=(
+            "${RELEASE_TAG}"
+            release/*
+            --title "${RELEASE_TAG}"
+            --notes-file release-notes.md
+          )
+
+          if [[ "${github_event_name:-${GITHUB_EVENT_NAME}}" == "workflow_dispatch" ]]; then
+            release_args+=(--target "${GITHUB_SHA}")
+          fi
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" release/* --clobber
+          else
+            gh release create "${release_args[@]}"
+          fi

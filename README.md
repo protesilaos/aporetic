@@ -24,17 +24,25 @@ _Please help me fill this in with information about available platforms, such as
 
 ### Manual Install on GNU/Linux
 
-Unless you have some exotic system, in which case you know what you are doing, you can install fonts for your local user by copying the `.ttf` files or their directories to `~/.local/share/fonts/`. For system-wide installation, place them in `/usr/share/fonts/`.
-
-Depending on your system, you may need to delete the `ttf` or `ttf-unhinted` builds. Though this is not strictly necessary, as the system knows which one to pick.
-
-**Perform a shallow clone** of this repository to speed things up:
+Download the latest release archive and install the hinted TTF files for your user:
 
 ```sh
-git clone --depth 1 https://github.com/protesilaos/aporetic
+curl -fL "https://github.com/protesilaos/aporetic/releases/latest/download/aporetic.zip" -o /tmp/aporetic.zip
+mkdir -p "${HOME}/.local/share/fonts/aporetic"
+unzip -jo /tmp/aporetic.zip '*/TTF/*.ttf' -d "${HOME}/.local/share/fonts/aporetic"
+fc-cache -f
 ```
 
-Then move the font files/directories where they need to be.
+The command above installs the hinted builds from the `TTF` directories. To install the unhinted builds, use `*/TTF-Unhinted/*.ttf` in the `unzip` command.
+
+For system-wide installation, extract the font files to `/usr/share/fonts/aporetic` and refresh the font cache:
+
+```sh
+curl -fL "https://github.com/protesilaos/aporetic/releases/latest/download/aporetic.zip" -o /tmp/aporetic.zip
+sudo mkdir -p /usr/share/fonts/aporetic
+sudo unzip -jo /tmp/aporetic.zip '*/TTF/*.ttf' -d /usr/share/fonts/aporetic
+sudo fc-cache -f
+```
 
 ### Install with Guix
 
