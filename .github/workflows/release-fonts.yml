@@ -165,7 +165,7 @@ jobs:
           const slopeCss = process.env.SLOPE_CSS;
 
           const sectionHeader = /^\s*\[([^\]]+)\]\s*$/;
-          const topLevelKeys = /^\s*(spacing|export-glyph-names|exportGlyphNames|noCvSs|noLigation|webfontFormats)\s*=/;
+          const topLevelKeys = /^\s*(spacing|export-glyph-names|exportGlyphNames|buildTextureFeature|noCvSs|noLigation|webfontFormats)\s*=/;
           const removedSubsections = ["weights", "slopes", "widths", "ligations"];
 
           function isRemovedTargetSubsection(section) {
@@ -179,6 +179,7 @@ jobs:
             return [
               `spacing = "${spacing}"\n`,
               "exportGlyphNames = true\n",
+              "buildTextureFeature = true\n",
               "noCvSs = false\n",
               "noLigation = false\n",
               'webfontFormats = ["TTF", "WOFF2"]\n',
@@ -323,7 +324,7 @@ jobs:
           - Weights: thin, extralight, light, regular, medium, semibold, bold, extrabold, heavy
           - Slopes: upright, italic
           - Width: normal
-          - Features: default contextual ligatures, exported glyph names for Kitty, OpenType CV/SS features
+          - Features: default contextual ligatures, TXTR texture healing, exported glyph names for Kitty, OpenType CV/SS features
           - Formats: hinted TTF, unhinted TTF, WOFF2
           EOF
 

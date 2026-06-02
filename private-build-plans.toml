@@ -6,6 +6,7 @@ family = "Aporetic Sans Mono"    # Font menu family name
 spacing = "fixed"                # Optional; Values: `normal`, `quasi-proportional`, `quasi-proportional-extension-only`, `term`, `fontconfig-mono`, or `fixed`
 serifs = "sans"                  # Optional; Values: `sans` or `slab`
 export-glyph-names = false       # Set this to true for ligature support in Kitty (increased file size)
+buildTextureFeature = true       # Enable opt-in TXTR texture healing support
 
 [buildPlans.aporetic-sans-mono.variants.design]
 cv03 = 3    # 3 with double arc
@@ -182,6 +183,7 @@ family = "Aporetic Sans"
 spacing = "quasi-proportional"
 serifs = "sans"
 export-glyph-names = false
+buildTextureFeature = true
 
 [buildPlans.aporetic-sans.variants]
 inherits = "buildPlans.aporetic-sans-mono"
@@ -238,6 +240,7 @@ family = "Aporetic Serif Mono"
 spacing = "fixed"
 serifs = "slab"
 export-glyph-names = false
+buildTextureFeature = true
 
 [buildPlans.aporetic-serif-mono.variants]
 inherits = "buildPlans.aporetic-sans-mono"
@@ -320,6 +323,7 @@ family = "Aporetic Serif"
 spacing = "quasi-proportional"
 serifs = "slab"
 export-glyph-names = false
+buildTextureFeature = true
 
 [buildPlans.aporetic-serif.variants]
 inherits = "buildPlans.aporetic-serif-mono"
